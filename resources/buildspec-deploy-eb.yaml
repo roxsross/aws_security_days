@@ -1,14 +1,5 @@
 version: 0.2
 
-env:
-  variables:
-    AWS_ACCOUNT_ID: "680359990703"
-    AWS_DEFAULT_REGION: "us-east-1"
-    IMAGE_REPO_NAME: "prueba"
-    BEANSTALK_PROJECT: "demo-aws-securityross"
-    BEANSTALK_ENVIRONMENT: "Demoawssecurity-env"
-    BUILD_ARTIFACTS_BUCKET: "demo-security-build-artifacts"
-
 phases:
   install:
     commands:
