@@ -8,20 +8,23 @@ phases:
   pre_build:
     commands:
       - echo Entered the pre_build phase...
+      - echo $(date +%Y-%m-%d-%H-%M) > /tmp/timestamp
+      - echo $(cat /tmp/timestamp)
+      - TAG="DEVEL-$(cat /tmp/timestamp)"
   build:
     commands:
       - echo Entered the build phase...
       - echo Building the Docker image...
-      - echo $IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER
-      - docker build -t $IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER .
-      - docker tag $IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER
+      - echo $IMAGE_REPO_NAME:$TAG
+      - docker build -t $IMAGE_REPO_NAME:$TAG .
+      - docker tag $IMAGE_REPO_NAME:$TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$TAG
   post_build:
     commands:
       - echo Entered the post_build phase...
       - echo Pushing the Docker image...
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$TAG
       - echo Deploying to Elastic Beanstalk...
-      - sed -i'' -e "s;%IMAGE_NAME%;$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_BUILD_NUMBER;g" ./Dockerrun.aws.json
-      - aws s3 cp ./Dockerrun.aws.json s3://$BUILD_ARTIFACTS_BUCKET/$CODEBUILD_BUILD_NUMBER/Dockerrun.aws.json
-      - aws elasticbeanstalk create-application-version --application-name "$BEANSTALK_PROJECT" --version-label "$CODEBUILD_BUILD_NUMBER" --source-bundle S3Bucket=$BUILD_ARTIFACTS_BUCKET,S3Key=$CODEBUILD_BUILD_NUMBER/Dockerrun.aws.json --description "Description"
-      - aws elasticbeanstalk update-environment --environment-name "$BEANSTALK_ENVIRONMENT" --version-label "$CODEBUILD_BUILD_NUMBER"
+      - sed -i'' -e "s;%IMAGE_NAME%;$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$TAG;g" ./Dockerrun.aws.json
+      - aws s3 cp ./Dockerrun.aws.json s3://$BUILD_ARTIFACTS_BUCKET/$TAG/Dockerrun.aws.json
+      - aws elasticbeanstalk create-application-version --application-name "$BEANSTALK_PROJECT" --version-label "$TAG" --source-bundle S3Bucket=$BUILD_ARTIFACTS_BUCKET,S3Key=$TAG/Dockerrun.aws.json --description "Description"
+      - aws elasticbeanstalk update-environment --environment-name "$BEANSTALK_ENVIRONMENT" --version-label "$TAG"
