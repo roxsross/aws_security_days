@@ -1,0 +1,35 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_ACCOUNT_ID: "680359990703"
+    AWS_DEFAULT_REGION: "us-east-1"
+    IMAGE_REPO_NAME: "prueba"
+    BEANSTALK_PROJECT: "demo-aws-securityross"
+    BEANSTALK_ENVIRONMENT: "Demoawssecurity-env"
+    BUILD_ARTIFACTS_BUCKET: "demo-security-build-artifacts"
+
+phases:
+  install:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+  pre_build:
+    commands:
+      - echo Entered the pre_build phase...
+  build:
+    commands:
+      - echo Entered the build phase...
+      - echo Building the Docker image...
+      - docker build -t $IMAGE_REPO_NAME:$CODEBUILD_SOURCE_VERSION .
+      - docker tag $IMAGE_REPO_NAME:$CODEBUILD_SOURCE_VERSION $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_SOURCE_VERSION
+  post_build:
+    commands:
+      - echo Entered the post_build phase...
+      - echo Pushing the Docker image...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_SOURCE_VERSION
+      - echo Deploying to Elastic Beanstalk...
+      - sed -i'' -e "s;%IMAGE_NAME%;$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$CODEBUILD_SOURCE_VERSION;g" ./Dockerrun.aws.json
+      - aws s3 cp ./Dockerrun.aws.json s3://$BUILD_ARTIFACTS_BUCKET/$CODEBUILD_SOURCE_VERSION/Dockerrun.aws.json
+      - aws elasticbeanstalk create-application-version --application-name "$BEANSTALK_PROJECT" --version-label "$CODEBUILD_SOURCE_VERSION" --source-bundle S3Bucket=$BUILD_ARTIFACTS_BUCKET,S3Key=$CODEBUILD_SOURCE_VERSION/Dockerrun.aws.json --description "Description"
+      - aws elasticbeanstalk update-environment --environment-name "$BEANSTALK_ENVIRONMENT" --version-label "$CODEBUILD_SOURCE_VERSION"

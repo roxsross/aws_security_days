@@ -1,0 +1,59 @@
+version: 0.2
+env:
+    variables:
+        AWS_DEFAULT_REGION: us-east-1
+        IMAGE_REPO_NAME: aws-prueba
+        DOCKER_BUILDKIT: "1"
+        ECR_REGISTRY: "459137896070.dkr.ecr.us-east-1.amazonaws.com"
+        AWS_ACCOUNT_ID: 459137896070
+phases:
+  install:
+    commands:
+      - echo "in the install phase"
+      - yum -y update
+      - curl -s -qL -o /usr/bin/jq https://stedolan.github.io/jq/download/linux64/jq
+      - chmod +x /usr/bin/jq
+      - curl https://bootstrap.pypa.io/get-pip.py | python3
+      - pip3 install --upgrade awscli
+      - yum install docker -y
+    finally:
+      - echo This always runs even if the login command fails    
+  pre_build:
+    commands:
+      - echo "inside pre_build stage"
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=overlay&
+      - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
+      - echo "stage pre_build completed"
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - echo $REPOSITORY_URI
+  build:
+    commands:
+      - echo "inside build stage"
+      - echo $IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker build -t $IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION .
+      - curl -s https://ci-tools.anchore.io/inline_scan-v0.6.0 | bash -s -- -r $IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION 
+      - TAG="$CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - docker tag $IMAGE_REPO_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION $REPOSITORY_URI:latest
+      - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+      - cat anchore-reports/aws-prueba_*-vuln.json
+  post_build:
+    commands:
+      - |
+        jq "{ \"messageType\": \"CodeScanReport\", \"reportType\": \"ANCHORE\", \"createdAt\": $(date +\"%Y-%m-%dT%H:%M:%S.%3NZ\"), \"source_repository\": \"$CODEBUILD_SOURCE_REPO_URL\", \"source_branch\": \"$CODEBUILD_SOURCE_VERSION\", \"build_id\": \"$CODEBUILD_BUILD_ID\", \"source_commitid\": \"$CODEBUILD_RESOLVED_SOURCE_VERSION\", \"report\": . }" anchore-reports/aws-prueba_*-vuln.json > payload.json
+      - echo ""
+      - |
+        if (grep -E 'High|Critical' payload.json); then 
+          aws lambda invoke --function-name ImpToSecurityHubEKS --payload file://payload.json anchore-reports/aws-prueba_*-vuln.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+          echo "There are critical or high vulnerabilities.. failing the build"
+          docker push $REPOSITORY_URI:latest
+          
+        elif (grep -E 'Medium' payload.json); then
+          aws lambda invoke --function-name ImpToSecurityHubEKS --payload file://payload.json anchore-reports/aws-prueba_*-vuln.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+          docker push $REPOSITORY_URI:latest
+        else
+          docker push $REPOSITORY_URI:latest
+        fi
+      - printf '[{"name":"hello-k8s","imageUri":"%s"}]' $REPOSITORY_URI:$TAG > build.json
+artifacts:
+  type: zip
+  files: '**/*'

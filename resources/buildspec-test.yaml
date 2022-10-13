@@ -1,0 +1,13 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - echo "Init"
+      - npm install
+  build:
+    commands:
+      - echo "check test"
+      - npm run test
+  post_build:
+    commands:
+      - echo test completed on `date`

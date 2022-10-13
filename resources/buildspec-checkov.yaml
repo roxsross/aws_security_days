@@ -1,0 +1,29 @@
+version: 0.2
+
+env:
+  variables:
+    TF_VERSION: "1.1.7"
+
+phases:
+  install:
+    runtime-versions:
+       python: latest
+    commands:
+      - cd /usr/bin
+      - "curl -s -qL -o terraform.zip https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+      - unzip -o terraform.zip
+      - python -V
+      - pip3 install checkov
+  build:
+    commands:
+      - cd "$CODEBUILD_SRC_DIR"
+      - checkov --skip-check CKV_DOCKER_2,CKV_DOCKER_3 -d . -o json > checkov.json
+  post_build:
+    commands:
+      - echo "Checkov test is completed on `date`"      
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - cat checkov.json
+artifacts:
+  files: checkov.json

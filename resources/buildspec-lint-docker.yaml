@@ -1,0 +1,31 @@
+version: 0.2
+
+env:
+    variables:
+        AWS_REGION_NAME: us-east-1
+        ECR_REPOSITORY_NAME: prueba
+        DOCKER_BUILDKIT: "1"
+        ECR_REGISTRY: "680359990703.dkr.ecr.us-east-1.amazonaws.com"
+
+phases:
+  install:
+    commands:
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2 &
+      - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
+  pre_build:
+    commands:
+      - echo "DOCKER FILE LINT STATGE"
+      - echo "PRE_BUILD Phase Will fail if Dockerfile is not secure or linted"
+      - echo Using Hadolint for Dockerfile linting
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+      - docker pull ${ECR_REGISTRY}/hadolint:latest
+      
+  build:
+    commands:
+      - echo "check hadolint"
+      - docker run --rm -i -v ${PWD}/.hadolint.yml:/.hadolint.yaml ${ECR_REGISTRY}/hadolint:latest hadolint -f json - < ./Dockerfile
+      - echo DOCKER FILE LINT STATGE - PASSED
+  post_build:
+    commands:
+      - bash -c "if [ /"$CODEBUILD_BUILD_SUCCEEDING/" == /"0/" ]; then exit 1; fi"
+      - echo Build completed on `date`

@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "in the install phase"
+      - npm install -g snyk
+    finally:
+      - echo This always runs even if the login command fails   
+  pre_build:
+    commands:
+      # Install Snyk
+      - echo Installing source NPM dependencies...
+      # Snyk auth
+      - snyk config set api="$SNYK_AUTH_TOKEN"
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Scanning with snyk...
+      - npm install
+      ## Run test for security vulernabilities
+      - snyk code test --severity-threshold=high --json > snyk-results.json || EXITCODE=$?
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo "check CODEBUILD_BUILD_SUCCEEDING $CODEBUILD_BUILD_SUCCEEDING"
+      - cat snyk-results.json
+artifacts:
+  files: snyk-results.json 

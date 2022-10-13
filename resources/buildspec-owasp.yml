@@ -1,0 +1,34 @@
+---
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+     java: corretto8
+     docker: 18
+    commands:
+      - curl -s -qL -o /usr/bin/jq https://stedolan.github.io/jq/download/linux64/jq
+      - chmod +x /usr/bin/jq
+      - yum -y update
+      - yum install docker -y
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2&
+      - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
+  build:
+    commands:
+      - echo Starting OWASP Zed Attack Proxy active scanning...
+      - chmod 777 $PWD
+      - mkdir -p /zap/wrk
+      - chmod 777 /zap/wrk      
+      - docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py -t http://$ALB_URL -c passive-scan.conf -J owaspresult.json 
+  post_build:
+    commands:
+      - ls -lrt $CODEBUILD_SRC_DIR
+      - cat owaspresult.json
+      - |
+        jq "{ \"messageType\": \"CodeScanReport\", \"reportType\": \"OWASP-Zap\", \"createdAt\": $(date +\"%Y-%m-%dT%H:%M:%S.%3NZ\"), \"source_repository\": \"$CODEBUILD_SOURCE_REPO_URL\", \"source_branch\": \"$CODEBUILD_SOURCE_VERSION\", \"build_id\": \"$CODEBUILD_BUILD_ID\", \"source_commitid\": \"$CODEBUILD_RESOLVED_SOURCE_VERSION\", \"report\": . }" owaspresult.json > payload.json
+        aws lambda invoke --function-name ImpToSecurityHubEKS --payload file://payload.json owaspresult.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+
+     # - if [ $high_alerts != 0 ] || [ $medium_alerts != 0 ]; then echo "there are high or medium alerts.. failing the build" && exit 1; else exit 0; fi
+artifacts:
+  type: zip
+  files: '**/*'
