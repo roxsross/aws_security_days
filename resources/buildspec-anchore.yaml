@@ -34,16 +34,16 @@ phases:
   post_build:
     commands:
       - |
-        jq "{ \"messageType\": \"CodeScanReport\", \"reportType\": \"ANCHORE\", \"createdAt\": $(date +\"%Y-%m-%dT%H:%M:%S.%3NZ\"), \"source_repository\": \"$CODEBUILD_SOURCE_REPO_URL\", \"source_branch\": \"$CODEBUILD_SOURCE_VERSION\", \"build_id\": \"$CODEBUILD_BUILD_ID\", \"source_commitid\": \"$CODEBUILD_RESOLVED_SOURCE_VERSION\", \"report\": . }" anchore-reports/aws-security-day-roxsross_*-vuln.json > payload.json
+        jq "{ \"messageType\": \"CodeScanReport\", \"reportType\": \"ANCHORE\", \"createdAt\": $(date +\"%Y-%m-%dT%H:%M:%S.%3NZ\"), \"source_repository\": \"$CODEBUILD_SOURCE_REPO_URL\", \"source_branch\": \"$CODEBUILD_SOURCE_VERSION\", \"build_id\": \"$CODEBUILD_BUILD_ID\", \"source_commitid\": \"$CODEBUILD_RESOLVED_SOURCE_VERSION\", \"report\": . }" anchore-reports/aws-prueba_*-vuln.json > payload.json
       - echo ""
       - |
         if (grep -E 'High|Critical' payload.json); then 
-          aws lambda invoke --function-name ImpToSecurityHubEKS --payload file://payload.json anchore-reports/aws-security-day-roxsross_*-vuln.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+          aws lambda invoke --function-name ImpToSecurityHubEKS --payload file://payload.json anchore-reports/aws-prueba_*-vuln.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
           echo "There are critical or high vulnerabilities.. failing the build"
           docker push $REPOSITORY_URI:latest
           
         elif (grep -E 'Medium' payload.json); then
-          aws lambda invoke --function-name ImpToSecurityHubEKS --payload file://payload.json anchore-reports/aws-security-day-roxsross_*-vuln.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
+          aws lambda invoke --function-name ImpToSecurityHubEKS --payload file://payload.json anchore-reports/aws-prueba_*-vuln.json && echo "LAMBDA_SUCCEDED" || echo "LAMBDA_FAILED";
           docker push $REPOSITORY_URI:latest
         else
           docker push $REPOSITORY_URI:latest
