@@ -26,5 +26,5 @@ phases:
       - echo Deploying to Elastic Beanstalk...
       - sed -i'' -e "s;%IMAGE_NAME%;$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$TAG;g" ./Dockerrun.aws.json
       - aws s3 cp ./Dockerrun.aws.json s3://$BUILD_ARTIFACTS_BUCKET/$TAG/Dockerrun.aws.json
-      - aws elasticbeanstalk create-application-version --application-name "$BEANSTALK_PROJECT" --version-label "$TAG" --source-bundle S3Bucket=$BUILD_ARTIFACTS_BUCKET,S3Key=$TAG/Dockerrun.aws.json --description "Description"
-      - aws elasticbeanstalk update-environment --environment-name "$BEANSTALK_ENVIRONMENT" --version-label "$TAG"
+      - aws elasticbeanstalk create-application-version --application-name "$BEANSTALK_PROJECT" --version-label "$BEANSTALK_ENVIRONMENT-$TAG" --source-bundle S3Bucket=$BUILD_ARTIFACTS_BUCKET,S3Key=$TAG/Dockerrun.aws.json --description "Description"
+      - aws elasticbeanstalk update-environment --environment-name "$BEANSTALK_ENVIRONMENT" --version-label "$BEANSTALK_ENVIRONMENT-$TAG"
