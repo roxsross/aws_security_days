@@ -1,12 +1,5 @@
 version: 0.2
 
-env:
-    variables:
-        AWS_REGION_NAME: us-east-1
-        ECR_REPOSITORY_NAME: prueba
-        DOCKER_BUILDKIT: "1"
-        ECR_REGISTRY: "680359990703.dkr.ecr.us-east-1.amazonaws.com"
-
 phases:
   install:
     commands:

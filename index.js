@@ -29,7 +29,7 @@ app.get('/getenv/*', function (req, res) {
 });
 
 app.get('/*', function (req, res) {
-  res.send('Hello RoxsRoss! Version to'+req.url+'<hr>package json:'+pjson.version);
+  res.send('Hello AWS Security! Version to'+req.url+'<hr>package json:'+pjson.version);
 });
 
 app.listen(PORT, HOST)
