@@ -10,6 +10,8 @@ app.use(morgan('dev'));
 // Constants
 const PORT = 3000;
 const HOST = '0.0.0.0' || 'localhost';
+let secret = 'AKIATYYQSPX6DB23YQ89'
+let test= 'IQoJb3JpZ2luX2VjEM///////////wEaCXVzLWVhc3QtMSJIMEYCIQDlw0UPE99uwM'
 const by = 'https://roxs.295devops.com'
 
 app.get('/getenv/*', function (req, res) {
